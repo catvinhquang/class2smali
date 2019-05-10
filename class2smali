@@ -1,0 +1,50 @@
+# AUTHOR: Quang Cat
+# DATE: 10-May-2019
+
+# DEPENDENCIES:
+# dx: $HOME/Library/Android/sdk/build-tools/28.0.3/dx
+# baksmali: https://bitbucket.org/JesusFreke/smali/downloads/ => rename and move to /usr/local/bin/ after downloaded
+
+# SETUP ENVIRONMENT VARIABLE: edit ~/.bash_profile like below
+# export BUILD_TOOL=$HOME/Library/Android/sdk/build-tools/28.0.3/dx
+# export PATH=$PATH:$BUILD_TOOL
+# -----------------------------
+# Apply changes by: source ~/.bash_profile
+
+if [ "$#" -ne 1 ]; then
+    echo "class2smali {file_path.class}"
+else
+    in_path=$1
+    folder_path=$(dirname $in_path)
+    out_path=$TMPDIR"out/"
+    dex_path=$TMPDIR"classes.dex"
+
+    cd $folder_path
+
+    message=$(dx --dex --output=$dex_path $in_path 2>&1)
+    if [ "$?" -ne 0 ]; then
+        in_path=$(echo $message | egrep -o "\(.*\) does" | egrep -o "\(.*\)" | tr -d \(\)).class
+        
+        level="${in_path//[^\/]}"
+        level="${#level}"
+        while [ $level -gt 0 ]
+        do
+            cd ../
+            level=$(($level - 1))
+        done
+
+        tmp=$(dx --dex --output=$dex_path $in_path 2>&1)
+        if [ "$?" -ne 0 ]; then
+            echo $message
+            exit 1
+        fi
+
+        rm -rf $out_path
+
+        cd $TMPDIR
+        baksmali d $dex_path
+
+        dest=$(find $out_path -type f -name "*.smali")
+        open $dest -a "Android Studio"
+    fi
+fi
